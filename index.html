@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SECURE IDENTITY | Pro Template Engine</title>
+    <title>SECURE IDENTITY | 3D Multi-Layout Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <style>
-        :root { --accent: #d4af37; --bg: #0a0a0a; --card-bg: #111; }
+        :root { --accent: #d4af37; --bg: #050505; --card-bg: #111; --text: #fff; }
         
-        /* Template Styles based on your examples */
+        /* Design Templates */
         .tpl-luxe { --accent: #d4af37; --card-bg: #1a1a1a; --text: #fff; }
         .tpl-modern { --accent: #2ecc71; --card-bg: #ffffff; --text: #333; }
         .tpl-abstract { --accent: #e67e22; --card-bg: #2c3e50; --text: #fff; }
@@ -18,141 +18,170 @@
         body { 
             font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; 
             margin: 0; display: flex; flex-direction: column; align-items: center;
+            perspective: 1200px; overflow-x: hidden;
         }
 
-        /* --- THE DYNAMIC PREVIEW --- */
-        .preview-vault {
-            width: 100%; padding: 40px 0; display: flex; flex-direction: column; align-items: center;
+        /* --- 3D ANIMATED PREVIEW --- */
+        .preview-section {
+            width: 100%; padding: 50px 0; display: flex; flex-direction: column; align-items: center;
             background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
             border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 100;
         }
 
-        .card-container {
-            width: 340px; height: 200px; border-radius: 15px; position: relative;
-            overflow: hidden; transition: 0.4s; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        /* Card Base with 3D Physics */
+        .card-3d {
+            width: 340px; height: 200px; border-radius: 18px; position: relative;
             background: var(--card-bg); color: var(--text); padding: 25px; box-sizing: border-box;
+            transition: transform 0.1s ease-out, width 0.5s, height 0.5s;
+            transform-style: preserve-3d;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Design Elements from Examples */
-        .card-accent-bar { position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: var(--accent); }
-        .card-wave { position: absolute; bottom: -50px; right: -50px; width: 150px; height: 150px; background: var(--accent); opacity: 0.1; border-radius: 50%; }
+        /* Vertical Layout Switch */
+        .card-3d.vertical { width: 220px; height: 350px; }
 
-        .c-logo { width: 40px; height: 30px; background: var(--accent); border-radius: 4px; margin-bottom: 10px; overflow: hidden; }
-        .c-logo img { width: 100%; height: 100%; object-fit: cover; }
-        .c-name { font-size: 1.4rem; font-weight: 800; margin: 0; letter-spacing: 1px; }
-        .c-title { font-size: 0.65rem; text-transform: uppercase; color: var(--accent); letter-spacing: 3px; font-weight: 700; }
+        .card-accent-line { position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: var(--accent); }
+        .card-chip { width: 45px; height: 32px; background: linear-gradient(135deg, #444, var(--accent)); border-radius: 6px; margin-bottom: 15px; }
 
-        .c-contact { margin-top: 15px; font-size: 0.55rem; line-height: 1.6; }
-        .c-qr { position: absolute; bottom: 20px; right: 20px; background: #fff; padding: 3px; border-radius: 4px; }
-
-        /* --- THE CUSTOMIZER PANEL --- */
-        .workshop { width: 100%; max-width: 450px; padding: 30px; box-sizing: border-box; }
-        .label { font-size: 0.65rem; color: #666; font-weight: 900; text-transform: uppercase; margin: 20px 0 8px 0; display: block; }
+        .v-name { font-size: 1.4rem; font-weight: 800; margin: 0; }
+        .v-title { font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; }
         
-        .tpl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
-        .tpl-opt { padding: 10px; font-size: 0.6rem; text-align: center; border: 1px solid #333; border-radius: 8px; cursor: pointer; }
-        .tpl-opt.active { border-color: var(--accent); background: rgba(255,255,255,0.05); }
+        .v-contacts { margin-top: 20px; font-size: 0.6rem; line-height: 1.8; }
+        .v-qr { position: absolute; bottom: 20px; right: 20px; background: #fff; padding: 4px; border-radius: 4px; }
+
+        /* --- THE WORKSHOP --- */
+        .workshop { width: 100%; max-width: 440px; padding: 30px; box-sizing: border-box; }
+        .label { font-size: 0.65rem; color: #555; font-weight: 900; text-transform: uppercase; margin: 25px 0 10px 0; display: block; }
+        
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn-toggle { flex: 1; padding: 12px; border: 1px solid #333; background: #111; color: #666; border-radius: 10px; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
+        .btn-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(255,255,255,0.05); }
 
         input { 
             width: 100%; padding: 15px; background: #111; border: 1px solid #222; 
-            color: white; border-radius: 10px; font-size: 0.9rem; margin-bottom: 10px;
+            color: white; border-radius: 12px; margin-bottom: 12px; font-size: 1rem;
         }
 
-        .btn-lock { width: 100%; padding: 20px; background: var(--accent); color: #000; border: none; border-radius: 12px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-top: 20px; }
+        .btn-main { width: 100%; padding: 22px; background: var(--accent); color: #000; border: none; border-radius: 18px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-top: 20px; }
     </style>
 </head>
-<body id="main-body">
+<body>
 
-    <div class="preview-vault">
-        <div class="card-container tpl-luxe" id="visual-card">
-            <div class="card-accent-bar"></div>
-            <div class="card-wave"></div>
-            <div class="c-logo" id="logo-preview"></div>
-            <h1 class="c-name" id="v-name">JOHN BUTLER</h1>
-            <p class="c-title" id="v-title">GENERAL MANAGER</p>
+    <div class="preview-section">
+        <div class="card-3d tpl-luxe" id="main-card">
+            <div class="card-accent-line"></div>
+            <div class="card-chip"></div>
+            <h1 class="v-name" id="disp-name">YOUR NAME</h1>
+            <p class="v-title" id="disp-title">POSITION</p>
             
-            <div class="c-contact" id="v-socials">
-                <div id="v-phone">📞 +00 123 456 789</div>
-                <div id="v-email">✉️ contact@business.com</div>
+            <div class="v-contacts">
+                <div id="disp-phone">📞 +00 123 456 789</div>
+                <div id="disp-social">🌐 Instagram / Facebook</div>
             </div>
 
-            <div class="c-qr" id="qrcode"></div>
+            <div class="v-qr" id="qrcode"></div>
         </div>
     </div>
 
     <div class="workshop">
-        <span class="label">Select Design Template</span>
-        <div class="tpl-grid">
-            <div class="tpl-opt active" onclick="setTpl('tpl-luxe')">GOLD LUXE</div>
-            <div class="tpl-opt" onclick="setTpl('tpl-modern')">MODERN WHITE</div>
-            <div class="tpl-opt" onclick="setTpl('tpl-abstract')">DARK ABSTRACT</div>
+        <span class="label">1. Orientation & Animation</span>
+        <div class="toggle-group">
+            <button class="btn-toggle active" id="btn-hor" onclick="setOrient('hor')">HORIZONTAL</button>
+            <button class="btn-toggle" id="btn-ver" onclick="setOrient('ver')">VERTICAL</button>
         </div>
 
-        <span class="label">Professional Identity</span>
-        <input type="text" id="i-name" placeholder="Full Name" oninput="liveUpdate()">
-        <input type="text" id="i-title" placeholder="Position" oninput="liveUpdate()">
-        
-        <span class="label">Contact Connections</span>
-        <input type="text" id="i-phone" placeholder="Phone Number" oninput="liveUpdate()">
-        <input type="text" id="i-fb" placeholder="Facebook Profile" oninput="liveUpdate()">
-        <input type="text" id="i-ig" placeholder="Instagram Username" oninput="liveUpdate()">
+        <span class="label">2. Visual Style (Based on Examples)</span>
+        <div class="toggle-group">
+            <button class="btn-toggle active" onclick="setTpl('tpl-luxe', this)">LUXE GOLD</button>
+            <button class="btn-toggle" onclick="setTpl('tpl-modern', this)">MODERN WAVE</button>
+            <button class="btn-toggle" onclick="setTpl('tpl-abstract', this)">ABSTRACT</button>
+        </div>
 
-        <span class="label">Security Master PIN</span>
-        <input type="password" id="i-pin" placeholder="Set 4-Digit Key" maxlength="4">
+        <span class="label">3. Personal Identity</span>
+        <input type="text" id="in-name" placeholder="Full Name" oninput="live()">
+        <input type="text" id="in-title" placeholder="Job Title" oninput="live()">
+        <input type="text" id="in-phone" placeholder="Phone Number" oninput="live()">
+        <input type="text" id="in-social" placeholder="Social Media Handle" oninput="live()">
 
-        <button class="btn-lock" onclick="saveData()">Encrypt & Save to Card</button>
-        <button onclick="downloadMasterKey()" style="background:none; border:none; color:#444; width:100%; margin-top:15px; font-size:0.7rem; cursor:pointer;">Download Security Master Key PDF</button>
+        <span class="label">4. Security Override</span>
+        <input type="password" id="in-pin" placeholder="Set 4-Digit Master PIN" maxlength="4">
+
+        <button class="btn-main" onclick="save()">Lock Card Design</button>
+        <button onclick="makePDF()" style="background:none; border:none; color:#444; width:100%; margin-top:15px; font-size:0.7rem; cursor:pointer; text-decoration: underline;">Download Recovery Master Key PDF</button>
     </div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('biz_card_v8')) || {
-        name: "JOHN BUTLER", title: "GENERAL MANAGER", tpl: "tpl-luxe", phone: "+00 123 456 789", pin: "1234"
+    let db = JSON.parse(localStorage.getItem('fortress_v9')) || {
+        name: "VALUED CLIENT", title: "IDENTITY SECURED", tpl: "tpl-luxe", orient: "hor", phone: "+00 123 456 789", pin: "1234"
     };
 
-    function setTpl(className) {
-        const card = document.getElementById('visual-card');
-        card.className = 'card-container ' + className;
-        db.tpl = className;
-        liveUpdate();
+    const card = document.getElementById('main-card');
+
+    // 3D Animation Engine
+    document.addEventListener('mousemove', (e) => {
+        let x = (window.innerWidth / 2 - e.pageX) / 25;
+        let y = (window.innerHeight / 2 - e.pageY) / 25;
+        card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+    });
+
+    function setOrient(type) {
+        if(type === 'ver') {
+            card.classList.add('vertical');
+            document.getElementById('btn-ver').classList.add('active');
+            document.getElementById('btn-hor').classList.remove('active');
+        } else {
+            card.classList.remove('vertical');
+            document.getElementById('btn-hor').classList.add('active');
+            document.getElementById('btn-ver').classList.remove('active');
+        }
+        db.orient = type;
     }
 
-    function liveUpdate() {
-        document.getElementById('v-name').innerText = document.getElementById('i-name').value || "NAME";
-        document.getElementById('v-title').innerText = document.getElementById('i-title').value || "POSITION";
-        document.getElementById('v-phone').innerText = "📞 " + (document.getElementById('i-phone').value || "PHONE");
+    function setTpl(tpl, btn) {
+        card.className = tpl + ' card-3d ' + (db.orient === 'ver' ? 'vertical' : '');
+        document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        db.tpl = tpl;
+        live();
+    }
+
+    function live() {
+        document.getElementById('disp-name').innerText = document.getElementById('in-name').value || "YOUR NAME";
+        document.getElementById('disp-title').innerText = document.getElementById('in-title').value || "POSITION";
+        document.getElementById('disp-phone').innerText = "📞 " + (document.getElementById('in-phone').value || "PHONE");
+        document.getElementById('disp-social').innerText = "🌐 " + (document.getElementById('in-social').value || "SOCIAL");
         
-        // Update accent colors based on template
-        const style = getComputedStyle(document.getElementById('visual-card'));
+        const style = getComputedStyle(card);
         document.documentElement.style.setProperty('--accent', style.getPropertyValue('--accent'));
     }
 
-    function saveData() {
-        db.name = document.getElementById('i-name').value;
-        db.title = document.getElementById('i-title').value;
-        db.phone = document.getElementById('i-phone').value;
-        if(document.getElementById('i-pin').value) db.pin = document.getElementById('i-pin').value;
+    function save() {
+        db.name = document.getElementById('in-name').value;
+        db.title = document.getElementById('in-title').value;
+        if(document.getElementById('in-pin').value) db.pin = document.getElementById('in-pin').value;
         
-        localStorage.setItem('biz_card_v8', JSON.stringify(db));
-        alert("Design locked and written to Secure Identity profile.");
+        localStorage.setItem('fortress_v9', JSON.stringify(db));
+        alert("Encrypted. Profile is now locked to card.");
     }
 
-    function downloadMasterKey() {
+    function makePDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.setFillColor(0,0,0); doc.rect(0,0,210,297,'F');
-        doc.setTextColor(212,175,55); doc.text("OFFICIAL MASTER SECURITY KEY", 20, 40);
+        doc.setTextColor(212,175,55); doc.text("MASTER RECOVERY KEY", 20, 40);
         doc.setTextColor(255,255,255);
         doc.text(`User: ${db.name}`, 20, 60);
         doc.text(`Master PIN: ${db.pin}`, 20, 75);
+        doc.text("Keep this PDF as a master key to unlock your identity.", 20, 100);
         doc.save("MasterKey.pdf");
     }
 
     window.onload = () => {
-        document.getElementById('i-name').value = db.name;
-        document.getElementById('i-title').value = db.title;
-        document.getElementById('i-phone').value = db.phone;
-        setTpl(db.tpl);
+        document.getElementById('in-name').value = db.name;
+        document.getElementById('in-title').value = db.title;
+        setOrient(db.orient);
+        live();
         new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 45, height: 45 });
     };
 </script>
