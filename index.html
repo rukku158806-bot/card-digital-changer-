@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SECURE IDENTITY | Pro Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        :root { --accent: #d4af37; --bg: #000; --card: #0a0a0a; --glass: rgba(255, 255, 255, 0.05); }
+        body { 
+            font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: #fff; 
+            margin: 0; display: flex; justify-content: center; min-height: 100vh; 
+            overflow: hidden; perspective: 1200px; touch-action: none;
+        }
+        
+        /* Entrance Gate */
+        #fortress-gate { 
+            position: fixed; inset: 0; background: #000; z-index: 9999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            transition: opacity 0.8s ease, visibility 0.8s;
+        }
+        .lock-icon { font-size: 3rem; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--accent)); animation: glow 2s infinite alternate; }
+        @keyframes glow { from { opacity: 0.5; } to { opacity: 1; } }
+
+        /* Main App Container */
+        #app { width: 100%; max-width: 420px; padding: 20px; opacity: 0; transform: scale(0.9) translateY(20px); transition: 1s cubic-bezier(0.17, 0.67, 0.83, 0.67); }
+        #app.unlocked { opacity: 1; transform: scale(1) translateY(0); }
+
+        /* 3D Card */
+        .card-container { 
+            position: relative; width: 100%; height: 620px; background: var(--card); border-radius: 40px; 
+            border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; padding: 40px; box-sizing: border-box;
+            transform-style: preserve-3d; transition: transform 0.1s ease-out;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.9);
+        }
+
+        .shimmer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(125deg, transparent 30%, rgba(212, 175, 55, 0.08) 50%, transparent 70%);
+            background-size: 200% 200%; animation: shimmerEffect 4s infinite linear; pointer-events: none; border-radius: 40px;
+        }
+        @keyframes shimmerEffect { 0% { background-position: -200% -200%; } 100% { background-position: 200% 200%; } }
+
+        .name { font-size: 2.6rem; font-weight: 900; margin: 0; letter-spacing: -1px; transform: translateZ(50px); }
+        .title { color: var(--accent); text-transform: uppercase; letter-spacing: 5px; font-size: 0.7rem; margin-top: 12px; font-weight: 800; transform: translateZ(30px); }
+
+        .link-grid { display: flex; flex-direction: column; gap: 12px; width: 100%; margin-top: 40px; transform: translateZ(20px); }
+        .chip { background: var(--glass); padding: 18px; border-radius: 20px; color: white; text-decoration: none; border: 1px solid rgba(255,255,255,0.05); font-weight: 600; font-size: 0.9rem; text-align: center; transition: 0.3s; }
+        .chip:active { background: var(--accent); color: #000; }
+        .chip.primary { border: 1px solid var(--accent); color: var(--accent); }
+
+        /* Workshop / Editor */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.98); padding: 30px; z-index: 10000; overflow-y: auto; }
+        .editor-box { background: #111; padding: 25px; border-radius: 30px; border: 1px solid #222; margin-bottom: 50px;}
+        label { font-size: 0.6rem; color: var(--accent); font-weight: 900; display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 16px; margin-bottom: 15px; background: #000; border: 1px solid #333; color: white; border-radius: 15px; box-sizing: border-box; }
+        
+        .btn-gold { background: var(--accent); color: #000; font-weight: 900; width: 100%; padding: 20px; border: none; border-radius: 18px; cursor: pointer; text-transform: uppercase; margin-top: 10px; }
+        .btn-outline { background: none; border: 1px solid #444; color: #888; width: 100%; padding: 15px; border-radius: 18px; margin-top: 10px; cursor: pointer; }
+        
+        #qr-wrap { margin-top: 35px; background: #fff; padding: 8px; border-radius: 12px; transform: translateZ(10px); }
+    </style>
+</head>
+<body>
+
+<div id="fortress-gate">
+    <div class="lock-icon">🔒</div>
+    <h3 style="letter-spacing: 4px; font-size: 0.7rem; color: #555;">ENCRYPTED IDENTITY</h3>
+    <input type="password" id="gate-pass" placeholder="ACCESS PIN" style="width: 180px; text-align: center; margin-top: 25px; border: 1px solid #222; background: #0a0a0a; color: white; padding: 15px; border-radius: 12px; font-size: 1rem;">
+    <button onclick="verifyGate()" style="margin-top: 20px; background: var(--accent); border: none; color: #000; padding: 12px 40px; border-radius: 25px; font-weight: 900; cursor: pointer; text-transform: uppercase; font-size: 0.7rem;">Verify Card</button>
+</div>
+
+<div id="app">
+    <div id="card-inner" class="card-container" onclick="adminTaps()">
+        <div class="shimmer"></div>
+        <div id="pro-badge" style="display:none; color:var(--accent); font-size: 0.5rem; font-weight: 900; margin-bottom: 15px; border: 1px solid var(--accent); padding: 3px 10px; border-radius: 8px; transform: translateZ(40px);">PRO EDITION</div>
+        <h1 id="disp-name" class="name">---</h1>
+        <p id="disp-title" class="title">---</p>
+        
+        <div class="link-grid" id="links-container">
+            <a id="digital-profile-link" href="#" class="chip primary">VIEW FULL DIGITAL PROFILE</a>
+            <div id="other-links"></div>
+        </div>
+        
+        <div id="qr-wrap"><div id="qrcode"></div></div>
+    </div>
+
+    <div id="workshop" class="modal">
+        <div class="editor-box">
+            <h2 style="color:var(--accent); margin-top: 0; font-size: 1.2rem;">CARD WORKSHOP</h2>
+            <label>FULL NAME</label><input type="text" id="edit-name">
+            <label>TITLE</label><input type="text" id="edit-title">
+            <label>DIGITAL PROFILE URL</label><input type="text" id="edit-profile-url">
+            <label>SET NEW 4-DIGIT PIN</label><input type="password" id="edit-pin" maxlength="4">
+            
+            <button class="btn-gold" onclick="saveData()">Update & Lock</button>
+            
+            <div id="pdf-section" style="display:none; margin-top: 30px; border-top: 1px solid #333; pt: 20px;">
+                <p style="font-size: 0.7rem; color: #888; text-align: center;">Identity updated. Generate your recovery key now.</p>
+                <button class="btn-gold" style="background: #fff;" onclick="generateAndSharePDF()">Generate Master Key PDF</button>
+            </div>
+
+            <button class="btn-outline" onclick="document.getElementById('workshop').style.display='none'">Exit Workshop</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const KEY = 'secure_card_vfinal';
+    const GATE_CODE = "1234"; // Master Gateway
+    let db = JSON.parse(localStorage.getItem(KEY)) || { name: "New User", title: "Setup Required", pin: "0000", profileUrl: "#", links: [] };
+
+    // Step 1: Entry
+    async function verifyGate() {
+        if (document.getElementById('gate-pass').value === GATE_CODE) {
+            document.getElementById('fortress-gate').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('fortress-gate').style.visibility = 'hidden';
+                document.getElementById('app').classList.add('unlocked');
+                initApp();
+            }, 800);
+        } else { alert("Incorrect PIN"); }
+    }
+
+    function initApp() {
+        const isPro = new URLSearchParams(window.location.search).get('tier') === 'pro';
+        if (isPro) document.getElementById('pro-badge').style.display = 'block';
+        render();
+        new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 85, height: 85 });
+    }
+
+    function render() {
+        document.getElementById('disp-name').innerText = db.name;
+        document.getElementById('disp-title').innerText = db.title;
+        document.getElementById('digital-profile-link').href = db.profileUrl;
+        
+        // Populate inputs in workshop
+        document.getElementById('edit-name').value = db.name;
+        document.getElementById('edit-title').value = db.title;
+        document.getElementById('edit-profile-url').value = db.profileUrl;
+    }
+
+    // Admin Access (4 Taps)
+    let count = 0, last = 0;
+    function adminTaps() {
+        const now = Date.now();
+        if (now - last > 1500) count = 1; else count++;
+        last = now;
+        if (count >= 4) {
+            if (prompt("Admin PIN:") === db.pin) document.getElementById('workshop').style.display = 'block';
+            count = 0;
+        }
+    }
+
+    // Step 2 & 5: Save & Lock
+    function saveData() {
+        db.name = document.getElementById('edit-name').value || db.name;
+        db.title = document.getElementById('edit-title').value || db.title;
+        db.profileUrl = document.getElementById('edit-profile-url').value || db.profileUrl;
+        if (document.getElementById('edit-pin').value) db.pin = document.getElementById('edit-pin').value;
+        
+        localStorage.setItem(KEY, JSON.stringify(db));
+        document.getElementById('pdf-section').style.display = 'block'; // Show PDF Button
+        alert("Settings Saved. Please generate your Master Key PDF before exiting.");
+    }
+
+    // Step 3 & 4: PDF Builder & Native Share
+    async function generateAndSharePDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // Design the PDF
+        doc.setFillColor(0, 0, 0);
+        doc.rect(0, 0, 210, 297, 'F');
+        doc.setTextColor(212, 175, 55);
+        doc.setFontSize(22);
+        doc.text("SECURE IDENTITY: MASTER KEY", 20, 40);
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(12);
+        doc.text(`Owner: ${db.name}`, 20, 60);
+        doc.text(`Recovery PIN: ${db.pin}`, 20, 70);
+        doc.text(`Card URL: ${window.location.href}`, 20, 80);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text("INSTRUCTIONS: Keep this document safe. Use the Recovery PIN above", 20, 110);
+        doc.text("if you are locked out or change devices.", 20, 115);
+
+        // Convert to Blob
+        const pdfBlob = doc.output('blob');
+        const file = new File([pdfBlob], "MasterKey_Recovery.pdf", { type: "application/pdf" });
+
+        // Trigger Native Share Sheet
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'My Secure Master Key',
+                    text: 'Here is my identity recovery document.'
+                });
+            } catch (err) {
+                console.error("Share failed", err);
+                doc.save("MasterKey_Backup.pdf"); // Fallback to direct download
+            }
+        } else {
+            doc.save("MasterKey_Backup.pdf"); // Fallback for older browsers
+        }
+    }
+</script>
+</body>
+</html>
