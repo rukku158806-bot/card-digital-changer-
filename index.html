@@ -3,187 +3,313 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SECURE IDENTITY | 3D Multi-Layout Edition</title>
+    <title>Smart NFC OS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    
     <style>
-        :root { --accent: #d4af37; --bg: #050505; --card-bg: #111; --text: #fff; }
-        
-        /* Design Templates */
-        .tpl-luxe { --accent: #d4af37; --card-bg: #1a1a1a; --text: #fff; }
-        .tpl-modern { --accent: #2ecc71; --card-bg: #ffffff; --text: #333; }
-        .tpl-abstract { --accent: #e67e22; --card-bg: #2c3e50; --text: #fff; }
-
-        body { 
-            font-family: 'Inter', sans-serif; background: var(--bg); color: #fff; 
+        :root {
+            --card-w: 340px; --card-h: 210px;
+            --gold: #d4af37; --platinum: #e5e4e2; --emerald: #50c878;
+        }
+        body {
+            background: #000; color: #fff; font-family: sans-serif;
             margin: 0; display: flex; flex-direction: column; align-items: center;
-            perspective: 1200px; overflow-x: hidden;
+            overflow-x: hidden;
         }
 
-        /* --- 3D ANIMATED PREVIEW --- */
-        .preview-section {
-            width: 100%; padding: 50px 0; display: flex; flex-direction: column; align-items: center;
-            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
-            border-bottom: 1px solid #222; position: sticky; top: 0; z-index: 100;
+        /* --- 3-SIDE CARD OS STAGE --- */
+        .stage {
+            perspective: 1200px; padding: 40px 0; width: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            background: radial-gradient(circle at center, #111, #000);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .card-container {
+            width: var(--card-w); height: var(--card-h);
+            position: relative; transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-container.flipped { transform: rotateY(180deg); }
+        .card-container.portrait { --card-w: 210px; --card-h: 340px; }
+
+        .face {
+            position: absolute; width: 100%; height: 100%;
+            backface-visibility: hidden; border-radius: 15px;
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; box-sizing: border-box;
         }
 
-        /* Card Base with 3D Physics */
-        .card-3d {
-            width: 340px; height: 200px; border-radius: 18px; position: relative;
-            background: var(--card-bg); color: var(--text); padding: 25px; box-sizing: border-box;
-            transition: transform 0.1s ease-out, width 0.5s, height 0.5s;
-            transform-style: preserve-3d;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.8);
-            border: 1px solid rgba(255,255,255,0.1);
+        /* --- SIDE 1: FRONT (IDENTITY + FLYER) --- */
+        .side-front { background: #111; padding: 20px; z-index: 2; }
+        .logo-slot { width: 50px; height: 50px; background: #222; margin-bottom: 10px; position: relative; }
+        .logo-slot img { width: 100%; height: 100%; object-fit: contain; }
+        .shimmer {
+            position: absolute; top: 0; left: -100%; width: 50%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            animation: shimmer-swipe 3s infinite; display: none;
+        }
+        @keyframes shimmer-swipe { 100% { left: 200%; } }
+        .flyer-zone { margin-top: auto; max-height: 80px; overflow-y: auto; font-size: 0.6rem; color: #aaa; }
+        .flyer-item { border-top: 1px solid #333; padding: 4px 0; }
+
+        /* --- SIDE 2: BACK (CONTACT HUB) --- */
+        .side-back { background: #0a0a0a; transform: rotateY(180deg); padding: 15px; }
+        .hub-section { margin-bottom: 10px; }
+        .hub-label { font-size: 0.5rem; color: var(--gold); font-weight: bold; text-transform: uppercase; }
+        .hub-list { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+        .hub-item { 
+            background: #222; padding: 4px 8px; border-radius: 4px; font-size: 0.6rem;
+            display: flex; align-items: center; gap: 5px; text-decoration: none; color: #fff;
         }
 
-        /* Vertical Layout Switch */
-        .card-3d.vertical { width: 220px; height: 350px; }
-
-        .card-accent-line { position: absolute; top: 0; left: 0; width: 100%; height: 8px; background: var(--accent); }
-        .card-chip { width: 45px; height: 32px; background: linear-gradient(135deg, #444, var(--accent)); border-radius: 6px; margin-bottom: 15px; }
-
-        .v-name { font-size: 1.4rem; font-weight: 800; margin: 0; }
-        .v-title { font-size: 0.65rem; color: var(--accent); text-transform: uppercase; letter-spacing: 3px; font-weight: 700; }
-        
-        .v-contacts { margin-top: 20px; font-size: 0.6rem; line-height: 1.8; }
-        .v-qr { position: absolute; bottom: 20px; right: 20px; background: #fff; padding: 4px; border-radius: 4px; }
+        /* --- SIDE 3: SYSTEM (UNKILLABLE) --- */
+        .system-layer { margin-top: 20px; display: flex; flex-direction: column; align-items: center; }
+        #qr-container { background: #fff; padding: 8px; border-radius: 4px; cursor: default; }
+        .pro-qr { cursor: pointer !important; }
 
         /* --- THE WORKSHOP --- */
-        .workshop { width: 100%; max-width: 440px; padding: 30px; box-sizing: border-box; }
-        .label { font-size: 0.65rem; color: #555; font-weight: 900; text-transform: uppercase; margin: 25px 0 10px 0; display: block; }
-        
-        .toggle-group { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn-toggle { flex: 1; padding: 12px; border: 1px solid #333; background: #111; color: #666; border-radius: 10px; cursor: pointer; font-size: 0.7rem; font-weight: 800; }
-        .btn-toggle.active { border-color: var(--accent); color: var(--accent); background: rgba(255,255,255,0.05); }
-
-        input { 
-            width: 100%; padding: 15px; background: #111; border: 1px solid #222; 
-            color: white; border-radius: 12px; margin-bottom: 12px; font-size: 1rem;
+        .workshop { width: 100%; max-width: 450px; padding: 20px; box-sizing: border-box; }
+        .field { margin-bottom: 15px; }
+        label { font-size: 0.7rem; color: var(--gold); display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { 
+            width: 100%; background: #111; border: 1px solid #333; color: #fff; 
+            padding: 12px; border-radius: 8px; box-sizing: border-box;
         }
-
-        .btn-main { width: 100%; padding: 22px; background: var(--accent); color: #000; border: none; border-radius: 18px; font-weight: 900; text-transform: uppercase; cursor: pointer; margin-top: 20px; }
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .btn { 
+            padding: 15px; border-radius: 8px; border: 1px solid #333; background: #222; 
+            color: #fff; font-weight: bold; cursor: pointer; text-align: center; font-size: 0.7rem;
+        }
+        .btn-master { background: var(--gold); color: #000; border: none; grid-column: span 2; font-size: 0.8rem; }
     </style>
 </head>
 <body>
 
-    <div class="preview-section">
-        <div class="card-3d tpl-luxe" id="main-card">
-            <div class="card-accent-line"></div>
-            <div class="card-chip"></div>
-            <h1 class="v-name" id="disp-name">YOUR NAME</h1>
-            <p class="v-title" id="disp-title">POSITION</p>
-            
-            <div class="v-contacts">
-                <div id="disp-phone">📞 +00 123 456 789</div>
-                <div id="disp-social">🌐 Instagram / Facebook</div>
+<div class="stage">
+    <div class="card-container" id="main-card">
+        <div class="face side-front" id="card-front">
+            <div class="shimmer" id="shimmer-fx"></div>
+            <div class="logo-slot" id="logo-display"></div>
+            <h2 id="v-name" style="margin:0; font-size: 1.2rem;">NAME</h2>
+            <p id="v-title" style="margin:2px 0; font-size: 0.7rem; color: #888;">TITLE</p>
+            <p id="v-slogan" style="margin:0; font-size: 0.6rem; color: var(--gold); letter-spacing: 1px;">SLOGAN</p>
+            <div class="flyer-zone" id="v-flyers"></div>
+        </div>
+        <div class="face side-back">
+            <div class="hub-section">
+                <div class="hub-label">Phones</div>
+                <div class="hub-list" id="v-phones"></div>
             </div>
-
-            <div class="v-qr" id="qrcode"></div>
+            <div class="hub-section">
+                <div class="hub-label">Socials</div>
+                <div class="hub-list" id="v-socials"></div>
+            </div>
+            <div class="hub-section">
+                <div class="hub-label">Websites</div>
+                <div class="hub-list" id="v-webs"></div>
+            </div>
         </div>
     </div>
 
-    <div class="workshop">
-        <span class="label">1. Orientation & Animation</span>
-        <div class="toggle-group">
-            <button class="btn-toggle active" id="btn-hor" onclick="setOrient('hor')">HORIZONTAL</button>
-            <button class="btn-toggle" id="btn-ver" onclick="setOrient('ver')">VERTICAL</button>
-        </div>
-
-        <span class="label">2. Visual Style (Based on Examples)</span>
-        <div class="toggle-group">
-            <button class="btn-toggle active" onclick="setTpl('tpl-luxe', this)">LUXE GOLD</button>
-            <button class="btn-toggle" onclick="setTpl('tpl-modern', this)">MODERN WAVE</button>
-            <button class="btn-toggle" onclick="setTpl('tpl-abstract', this)">ABSTRACT</button>
-        </div>
-
-        <span class="label">3. Personal Identity</span>
-        <input type="text" id="in-name" placeholder="Full Name" oninput="live()">
-        <input type="text" id="in-title" placeholder="Job Title" oninput="live()">
-        <input type="text" id="in-phone" placeholder="Phone Number" oninput="live()">
-        <input type="text" id="in-social" placeholder="Social Media Handle" oninput="live()">
-
-        <span class="label">4. Security Override</span>
-        <input type="password" id="in-pin" placeholder="Set 4-Digit Master PIN" maxlength="4">
-
-        <button class="btn-main" onclick="save()">Lock Card Design</button>
-        <button onclick="makePDF()" style="background:none; border:none; color:#444; width:100%; margin-top:15px; font-size:0.7rem; cursor:pointer; text-decoration: underline;">Download Recovery Master Key PDF</button>
+    <div class="system-layer">
+        <div id="qr-container"></div>
+        <button class="btn" style="margin-top:10px; font-size:0.5rem;" onclick="downloadPDF()">GENERATE RECOVERY PDF</button>
     </div>
+</div>
+
+<div class="workshop">
+    <div class="field">
+        <label>Identity</label>
+        <input type="text" id="i-name" placeholder="Name" oninput="liveUpdate()">
+        <input type="text" id="i-title" placeholder="Title" oninput="liveUpdate()">
+        <input type="text" id="i-slogan" placeholder="Slogan" oninput="liveUpdate()">
+    </div>
+
+    <div class="field">
+        <label>Logo Upload</label>
+        <input type="file" accept="image/*" onchange="uploadLogo(event)">
+    </div>
+
+    <div class="field">
+        <label>Style (Tier Locked)</label>
+        <select id="i-style" onchange="liveUpdate()"></select>
+    </div>
+
+    <div class="field">
+        <label>Material (Tier Locked)</label>
+        <select id="i-material" onchange="liveUpdate()"></select>
+    </div>
+
+    <div class="field">
+        <label>Contact Hub (Phone / Social / Web)</label>
+        <div style="display:flex; gap:5px;">
+            <select id="slot-type" style="width:30%;">
+                <option value="phone">Phone</option>
+                <option value="social">Social</option>
+                <option value="web">Web</option>
+            </select>
+            <input type="text" id="slot-val" placeholder="Value (e.g. +123 or @handle)">
+            <button class="btn" onclick="addSlot()">+</button>
+        </div>
+    </div>
+
+    <div class="field">
+        <label>Upcoming Events (Max 3)</label>
+        <input type="text" id="ev-title" placeholder="Event Title">
+        <input type="text" id="ev-date" placeholder="Date">
+        <button class="btn" style="width:100%; margin-top:5px;" onclick="addEvent()">ADD EVENT</button>
+    </div>
+
+    <div class="field">
+        <label>Master Security PIN</label>
+        <input type="password" id="i-pin" maxlength="4" placeholder="4-Digit PIN">
+    </div>
+
+    <div class="btn-group">
+        <div class="btn" onclick="toggleFlip()">FLIP CARD</div>
+        <div class="btn" onclick="toggleOrientation()">ORIENTATION</div>
+        <div class="btn btn-master" onclick="saveSystem()">LOCK IDENTITY</div>
+    </div>
+</div>
 
 <script>
-    let db = JSON.parse(localStorage.getItem('fortress_v9')) || {
-        name: "VALUED CLIENT", title: "IDENTITY SECURED", tpl: "tpl-luxe", orient: "hor", phone: "+00 123 456 789", pin: "1234"
+    const TIER = new URLSearchParams(window.location.search).get('tier') || 'basic';
+    const KEY = 'nfc_os_data';
+    let db = JSON.parse(localStorage.getItem(KEY)) || {
+        name: "PERFORMER", title: "IDENTITY PRO", slogan: "EXCELLENCE ALWAYS",
+        logo: null, style: "Gold Luxe", material: "Carbon Fiber", pin: "0000",
+        phones: [], socials: [], webs: [], events: []
     };
 
-    const card = document.getElementById('main-card');
+    function init() {
+        renderSelectors();
+        loadDB();
+        generateQR();
+        applyTierRestrictions();
+        setupTilt();
+    }
 
-    // 3D Animation Engine
-    document.addEventListener('mousemove', (e) => {
-        let x = (window.innerWidth / 2 - e.pageX) / 25;
-        let y = (window.innerHeight / 2 - e.pageY) / 25;
-        card.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
-    });
-
-    function setOrient(type) {
-        if(type === 'ver') {
-            card.classList.add('vertical');
-            document.getElementById('btn-ver').classList.add('active');
-            document.getElementById('btn-hor').classList.remove('active');
-        } else {
-            card.classList.remove('vertical');
-            document.getElementById('btn-hor').classList.add('active');
-            document.getElementById('btn-ver').classList.remove('active');
+    function renderSelectors() {
+        const s = document.getElementById('i-style');
+        const m = document.getElementById('i-material');
+        const styles = ["Gold Luxe", "Modern Wave", "Abstract Energy", "Luxury Card"];
+        const materials = ["Carbon Fiber", "Gold Leaf", "Frosted Glass", "Midnight Blue"];
+        
+        if (TIER === 'pro') {
+            styles.push("John Butler", "Abstract Flow");
+            materials.push("Platinum", "Emerald");
         }
-        db.orient = type;
-    }
-
-    function setTpl(tpl, btn) {
-        card.className = tpl + ' card-3d ' + (db.orient === 'ver' ? 'vertical' : '');
-        document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        db.tpl = tpl;
-        live();
-    }
-
-    function live() {
-        document.getElementById('disp-name').innerText = document.getElementById('in-name').value || "YOUR NAME";
-        document.getElementById('disp-title').innerText = document.getElementById('in-title').value || "POSITION";
-        document.getElementById('disp-phone').innerText = "📞 " + (document.getElementById('in-phone').value || "PHONE");
-        document.getElementById('disp-social').innerText = "🌐 " + (document.getElementById('in-social').value || "SOCIAL");
         
-        const style = getComputedStyle(card);
-        document.documentElement.style.setProperty('--accent', style.getPropertyValue('--accent'));
+        styles.forEach(opt => s.innerHTML += `<option value="${opt}">${opt}</option>`);
+        materials.forEach(opt => m.innerHTML += `<option value="${opt}">${opt}</option>`);
     }
 
-    function save() {
-        db.name = document.getElementById('in-name').value;
-        db.title = document.getElementById('in-title').value;
-        if(document.getElementById('in-pin').value) db.pin = document.getElementById('in-pin').value;
+    function loadDB() {
+        document.getElementById('i-name').value = db.name;
+        document.getElementById('i-title').value = db.title;
+        document.getElementById('i-slogan').value = db.slogan;
+        document.getElementById('i-style').value = db.style;
+        document.getElementById('i-material').value = db.material;
+        document.getElementById('i-pin').value = db.pin;
+        if(db.logo) document.getElementById('logo-display').innerHTML = `<img src="${db.logo}">`;
+        liveUpdate();
+    }
+
+    function liveUpdate() {
+        document.getElementById('v-name').innerText = document.getElementById('i-name').value || "NAME";
+        document.getElementById('v-title').innerText = document.getElementById('i-title').value || "TITLE";
+        document.getElementById('v-slogan').innerText = document.getElementById('i-slogan').value || "SLOGAN";
         
-        localStorage.setItem('fortress_v9', JSON.stringify(db));
-        alert("Encrypted. Profile is now locked to card.");
+        // Render Hubs
+        renderList('v-phones', db.phones, 'tel:');
+        renderList('v-socials', db.socials, 'https://');
+        renderList('v-webs', db.webs, 'https://');
+        
+        // Render Events
+        const evZone = document.getElementById('v-flyers');
+        evZone.innerHTML = "";
+        db.events.slice(-3).forEach(ev => {
+            evZone.innerHTML += `<div class="flyer-item"><b>${ev.t}</b><br>${ev.d}</div>`;
+        });
     }
 
-    function makePDF() {
+    function renderList(id, arr, prefix) {
+        const el = document.getElementById(id);
+        el.innerHTML = "";
+        arr.forEach((item, idx) => {
+            const link = item.includes('://') ? item : prefix + item;
+            el.innerHTML += `<div class="hub-item"><a href="${link}" style="color:inherit;text-decoration:none">${item}</a><span onclick="removeSlot('${id}', ${idx})" style="color:red;cursor:pointer">✕</span></div>`;
+        });
+    }
+
+    function addSlot() {
+        const type = document.getElementById('slot-type').value;
+        const val = document.getElementById('slot-val').value;
+        if(!val) return;
+        if(type === 'phone' && db.phones.length < 5) db.phones.push(val);
+        if(type === 'social' && db.socials.length < 5) db.socials.push(val);
+        if(type === 'web' && db.webs.length < 5) db.webs.push(val);
+        document.getElementById('slot-val').value = "";
+        liveUpdate();
+    }
+
+    function removeSlot(typeId, idx) {
+        if(typeId === 'v-phones') db.phones.splice(idx, 1);
+        if(typeId === 'v-socials') db.socials.splice(idx, 1);
+        if(typeId === 'v-webs') db.webs.splice(idx, 1);
+        liveUpdate();
+    }
+
+    function addEvent() {
+        const t = document.getElementById('ev-title').value;
+        const d = document.getElementById('ev-date').value;
+        if(t && d && db.events.length < 10) {
+            db.events.push({t, d});
+            liveUpdate();
+        }
+    }
+
+    function uploadLogo(e) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            db.logo = reader.result;
+            document.getElementById('logo-display').innerHTML = `<img src="${db.logo}">`;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+
+    function toggleFlip() { document.getElementById('main-card').classList.toggle('flipped'); }
+    function toggleOrientation() { document.getElementById('main-card').classList.toggle('portrait'); }
+
+    function applyTierRestrictions() {
+        if (TIER === 'pro') {
+            document.getElementById('shimmer-fx').style.display = 'block';
+            document.getElementById('qr-container').classList.add('pro-qr');
+            document.getElementById('qr-container').onclick = () => window.open(window.location.href);
+        }
+    }
+
+    function generateQR() {
+        new QRCode(document.getElementById("qr-container"), {
+            text: window.location.href, width: 100, height: 100
+        });
+    }
+
+    function saveSystem() {
+        db.name = document.getElementById('i-name').value;
+        db.title = document.getElementById('i-title').value;
+        db.slogan = document.getElementById('i-slogan').value;
+        db.style = document.getElementById('i-style').value;
+        db.material = document.getElementById('i-material').value;
+        db.pin = document.getElementById('i-pin').value;
+        localStorage.setItem(KEY, JSON.stringify(db));
+        alert("Identity Locked Locally.");
+    }
+
+    function downloadPDF() {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
-        doc.setFillColor(0,0,0); doc.rect(0,0,210,297,'F');
-        doc.setTextColor(212,175,55); doc.text("MASTER RECOVERY KEY", 20, 40);
-        doc.setTextColor(255,255,255);
-        doc.text(`User: ${db.name}`, 20, 60);
-        doc.text(`Master PIN: ${db.pin}`, 20, 75);
-        doc.text("Keep this PDF as a master key to unlock your identity.", 20, 100);
-        doc.save("MasterKey.pdf");
-    }
-
-    window.onload = () => {
-        document.getElementById('in-name').value = db.name;
-        document.getElementById('in-title').value = db.title;
-        setOrient(db.orient);
-        live();
-        new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 45, height: 45 });
-    };
-</script>
-</body>
-</html>
+        doc.text("SMART NFC RECOVERY KEY", 20, 20);
+        doc.text(`Identity: ${db.name}`, 20, 30);
+        doc.text(`Master PIN: ${db.pin}`, 20, 40);
+        doc.text("Store this offline. Use this PIN to self-
