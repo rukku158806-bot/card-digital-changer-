@@ -1,11 +1,15 @@
 // ComboCalculator.cs — Static helper that resolves orb combo multipliers.
+// All 5 special combos + fallback.
+
 public static class ComboCalculator
 {
-    // Returns (multiplier, comboName) for the given pair of orb names.
-    // The pair is order-independent.
+    /// <summary>
+    /// Returns (multiplier, comboName) for the given pair of orb names.
+    /// The pair is order-independent.
+    /// Base damage (GameConstants.BASE_DAMAGE) should be multiplied by the returned value.
+    /// </summary>
     public static (float multiplier, string comboName) Calculate(string orbA, string orbB)
     {
-        // Normalise to lower-case for comparison
         string a = orbA.ToLower();
         string b = orbB.ToLower();
 
@@ -15,12 +19,9 @@ public static class ComboCalculator
         if (Match(a, b, "water",   "lightning")) return (2.15f, "Storm Surge");
         if (Match(a, b, "nature",  "earth"))     return (2.10f, "Terra Growth");
 
-        // Fallback — no special synergy
         return (1.0f, "Basic Attack");
     }
 
     private static bool Match(string a, string b, string x, string y)
-    {
-        return (a == x && b == y) || (a == y && b == x);
-    }
+        => (a == x && b == y) || (a == y && b == x);
 }
