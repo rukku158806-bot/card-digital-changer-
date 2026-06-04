@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hex Battle</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: radial-gradient(ellipse at center, #0a1a0a 0%, #030d03 60%, #000800 100%);
+    min-height: 100vh;
+    font-family: 'Segoe UI', monospace;
+    color: #e0ffe0;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* TOP UI BAR */
+  #top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 64px;
+    background: linear-gradient(180deg, #0d1f0d 0%, #071407 100%);
+    border-bottom: 1px solid #1a3a1a;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 20px;
+    z-index: 100;
+  }
+
+  #score-display {
+    font-size: 22px;
+    font-weight: bold;
+    color: #ffe066;
+    text-shadow: 0 0 8px #ffaa00;
+    min-width: 80px;
+  }
+
+  #health-arc {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .ui-icon {
+    font-size: 20px;
+    filter: drop-shadow(0 0 4px #88ff88);
+  }
+
+  .bar-wrap {
+    width: 160px;
+    height: 14px;
+    background: #112211;
+    border-radius: 7px;
+    border: 1px solid #225522;
+    overflow: hidden;
+  }
+
+  #hp-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #22cc44, #88ff66);
+    border-radius: 7px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 6px #44ff44;
+  }
+
+  .bar-wrap.energy { width: 100px; }
+  #energy-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #2244cc, #44aaff);
+    border-radius: 7px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 6px #44aaff;
+  }
+
+  #lives-display {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+  }
+  .life-heart { font-size: 18px; filter: drop-shadow(0 0 4px #ff4466); }
+
+  #area-label {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-size: 14px;
+    color: #66aaff;
+    text-shadow: 0 0 6px #2266ff;
+    z-index: 100;
+  }
+
+  /* SIDEBAR */
+  #sidebar {
+    position: fixed;
+    left: 0; top: 64px; bottom: 0;
+    width: 80px;
+    background: linear-gradient(180deg, #0a1a0a, #050e05);
+    border-right: 1px solid #1a3a1a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0;
+    gap: 12px;
+    z-index: 100;
+  }
+
+  .sidebar-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 12px;
+    border: 2px solid #334433;
+    background: linear-gradient(135deg, #112211, #0a160a);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    gap: 3px;
+  }
+
+  .sidebar-btn:hover {
+    border-color: #44cc44;
+    box-shadow: 0 0 12px #22aa2266;
+    transform: scale(1.06);
+  }
+
+  .sidebar-btn.active {
+    border-color: #66ff66;
+    box-shadow: 0 0 16px #44ff4488;
+    background: linear-gradient(135deg, #1a3a1a, #112211);
+  }
+
+  .btn-icon { font-size: 22px; }
+  .btn-label { font-size: 9px; color: #88bb88; letter-spacing: 0.5px; }
+
+  /* GAME AREA */
+  #game-area {
+    position: fixed;
+    top: 64px; left: 80px; right: 0; bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* HEX GRID */
+  #hex-grid {
+    position: relative;
+  }
+
+  .hex-cell {
+    position: absolute;
+    width: 72px;
+    height: 72px;
+    cursor: pointer;
+    transition: filter 0.2s, transform 0.15s;
+  }
+
+  .hex-cell:hover { transform: scale(1.05); }
+
+  .hex-cell svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 4px #00000088);
+    transition: filter 0.2s;
+  }
+
+  .hex-cell.player-side svg polygon { fill: #2a3a2a; stroke: #445544; stroke-width: 2; }
+  .hex-cell.enemy-side svg polygon { fill: #0a1a2a; stroke: #224466; stroke-width: 2; }
+  .hex-cell.neutral svg polygon { fill: #141414; stroke: #282828; stroke-width: 2; }
+  .hex-cell.portal svg polygon { stroke: #00ffff; stroke-width: 3; animation: portalPulse 1.2s ease-in-out infinite; }
+
+  .hex-cell.highlighted svg polygon {
+    fill: #1a3a1a;
+    stroke: #44ff44;
+    stroke-width: 3;
+  }
+
+  @keyframes portalPulse {
+    0%, 100% { filter: drop-shadow(0 0 6px #00ffff88); }
+    50% { filter: drop-shadow(0 0 18px #00ffffff); }
+  }
+
+  /* PLAYER ENTITY */
+  #player-entity {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    transition: left 0.35s cubic-bezier(.4,0,.2,1), top 0.35s cubic-bezier(.4,0,.2,1);
+    z-index: 20;
+  }
+
+  #player-cube {
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #1166cc, #2288ff);
+    border-radius: 8px;
+    border: 2px solid #66aaff;
+    box-shadow: 0 0 20px #2266ff88, 0 0 40px #1144cc44;
+    position: relative;
+    animation: cubeFloat 2s ease-in-out infinite;
+  }
+
+  @keyframes cubeFloat {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .player-eye {
+    position: absolute;
+    width: 9px;
+    height: 9px;
+    background: white;
+    border-radius: 2px;
+    top: 12px;
+    box-shadow: 0 0 6px white;
+  }
+  .player-eye.left { left: 8px; }
+  .player-eye.right { right: 8px; }
+
+  /* ORB SYSTEM */
+  #orb-container {
+    position: absolute;
+    width: 0; height: 0;
+    left: 22px; top: 22px;
+    z-index: 30;
+  }
+
+  .orb {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    transform-origin: center;
+    z-index: 31;
+  }
+
+  .orb:hover, .orb.selected {
+    transform: scale(1.5) !important;
+  }
+
+  .orb.selected { outline: 2px solid white; }
+
+  /* ENEMIES */
+  .enemy-entity {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    transition: left 0.35s ease, top 0.35s ease;
+    z-index: 15;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .enemy-entity svg {
+    width: 40px;
+    height: 40px;
+    animation: enemyPulse 2s ease-in-out infinite;
+    overflow: visible;
+  }
+
+  @keyframes enemyPulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.4); }
+  }
+
+  .hp-bar-enemy {
+    position: absolute;
+    bottom: -8px;
+    left: 2px;
+    right: 2px;
+    height: 4px;
+    background: #330000;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .hp-bar-fill {
+    height: 100%;
+    background: #ff3333;
+    border-radius: 2px;
+    transition: width 0.3s;
+    box-shadow: 0 0 4px #ff0000;
+  }
+
+  /* FLASH MESSAGE */
+  #flash-msg {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: linear-gradient(135deg, #0d2a0d, #112211);
+    border: 2px solid #44ff44;
+    border-radius: 16px;
+    padding: 20px 36px;
+    text-align: center;
+    z-index: 200;
+    pointer-events: none;
+    transition: transform 0.2s cubic-bezier(.4,0,.2,1), opacity 0.2s;
+    opacity: 0;
+    min-width: 220px;
+  }
+
+  #flash-msg.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+
+  #flash-combo-name {
+    font-size: 22px;
+    font-weight: bold;
+    color: #88ffaa;
+    text-shadow: 0 0 10px #44ff88;
+    margin-bottom: 6px;
+  }
+
+  #flash-damage {
+    font-size: 32px;
+    font-weight: bold;
+    color: #ffee44;
+    text-shadow: 0 0 14px #ffaa00;
+  }
+
+  #flash-multiplier {
+    font-size: 14px;
+    color: #aaffcc;
+    margin-top: 4px;
+  }
+
+  /* FLOATING DAMAGE NUMBERS */
+  .dmg-float {
+    position: absolute;
+    font-size: 20px;
+    font-weight: bold;
+    color: #ffee44;
+    text-shadow: 0 0 8px #ffaa00;
+    pointer-events: none;
+    z-index: 50;
+    animation: floatUp 1s ease-out forwards;
+  }
+
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-50px); }
+  }
+
+  /* ORB SELECTOR PANEL */
+  #orb-panel {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #0d1f0d, #071407);
+    border: 2px solid #334433;
+    border-radius: 16px;
+    padding: 14px 20px;
+    z-index: 150;
+    display: none;
+    gap: 12px;
+    align-items: center;
+  }
+
+  #orb-panel.open { display: flex; }
+
+  .orb-select-item {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+    text-shadow: 1px 1px 2px #000;
+    flex-direction: column;
+  }
+
+  .orb-select-item:hover { transform: scale(1.15); }
+  .orb-select-item.picked { border-color: white; transform: scale(1.15); box-shadow: 0 0 14px white; }
+
+  #orb-panel-title {
+    color: #88cc88;
+    font-size: 13px;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  #orb-panel-wrap { display: flex; flex-direction: column; align-items: center; }
+
+  /* COMBO CHART POPUP */
+  #combo-popup {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #0a1a0a, #060e06);
+    border: 2px solid #334433;
+    border-radius: 20px;
+    padding: 24px;
+    z-index: 300;
+    display: none;
+    min-width: 300px;
+  }
+
+  #combo-popup.open { display: block; }
+
+  #combo-popup h2 {
+    color: #88ffaa;
+    text-align: center;
+    margin-bottom: 16px;
+    text-shadow: 0 0 8px #44ff88;
+  }
+
+  .combo-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #1a3a1a;
+    font-size: 14px;
+  }
+
+  .combo-row:last-child { border-bottom: none; }
+  .combo-name { color: #aaddaa; }
+  .combo-mult { color: #ffee44; font-weight: bold; }
+
+  #combo-close {
+    margin-top: 16px;
+    width: 100%;
+    padding: 10px;
+    background: #1a3a1a;
+    border: 1px solid #334433;
+    border-radius: 8px;
+    color: #88cc88;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+
+  #combo-close:hover { background: #224422; }
+
+  /* GAME OVER / WIN */
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: #00000099;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 400;
+  }
+
+  #overlay.open { display: flex; }
+
+  #overlay-box {
+    background: linear-gradient(135deg, #0d1f0d, #071407);
+    border: 2px solid #334433;
+    border-radius: 20px;
+    padding: 40px 50px;
+    text-align: center;
+    min-width: 280px;
+  }
+
+  #overlay-title {
+    font-size: 36px;
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+
+  #overlay-score {
+    font-size: 20px;
+    color: #ffe066;
+    margin-bottom: 24px;
+  }
+
+  #overlay-btn {
+    padding: 14px 32px;
+    background: linear-gradient(135deg, #1a4a1a, #224422);
+    border: 2px solid #44cc44;
+    border-radius: 12px;
+    color: #88ff88;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #overlay-btn:hover {
+    box-shadow: 0 0 16px #44ff4466;
+    transform: scale(1.04);
+  }
+
+  /* TURN INDICATOR */
+  #turn-indicator {
+    position: fixed;
+    top: 72px;
+    right: 16px;
+    font-size: 13px;
+    color: #66aa66;
+    text-shadow: 0 0 6px #44aa44;
+    z-index: 100;
+    padding: 4px 10px;
+    background: #0a1a0a99;
+    border-radius: 8px;
+    border: 1px solid #1a3a1a;
+  }
+
+  /* WAVE ANNOUNCEMENT */
+  #wave-announce {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 42px;
+    font-weight: bold;
+    color: #88ffaa;
+    text-shadow: 0 0 20px #44ff88;
+    pointer-events: none;
+    z-index: 250;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  #wave-announce.show { opacity: 1; }
+
+  /* ENERGY COST INDICATOR */
+  .energy-cost {
+    font-size: 8px;
+    color: #6699ff;
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="top-bar">
+  <div id="score-display">⭐ 0</div>
+  <div id="health-arc">
+    <span class="ui-icon">🌿</span>
+    <div class="bar-wrap">
+      <div id="hp-bar" style="width:100%"></div>
+    </div>
+    <span id="hp-text" style="font-size:12px;color:#88cc88;min-width:60px">100/100</span>
+
+    <span class="ui-icon" style="margin-left:12px">👁</span>
+    <div class="bar-wrap energy">
+      <div id="energy-bar" style="width:100%"></div>
+    </div>
+    <span id="energy-text" style="font-size:12px;color:#6688cc;min-width:40px">5/5</span>
+
+    <span class="ui-icon" style="margin-left:12px">❤️</span>
+    <div id="lives-display"></div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div id="sidebar">
+  <div class="sidebar-btn" id="btn-attack" onclick="startAttack()">
+    <span class="btn-icon">⚔️</span>
+    <span class="btn-label">ATTACK</span>
+    <span class="energy-cost">-2⚡</span>
+  </div>
+  <div class="sidebar-btn" id="btn-cannon" onclick="doCannon()">
+    <span class="btn-icon">💥</span>
+    <span class="btn-label">CANNON</span>
+    <span class="energy-cost">-1⚡</span>
+  </div>
+  <div class="sidebar-btn" id="btn-combo" onclick="showComboChart()">
+    <span class="btn-icon">📖</span>
+    <span class="btn-label">COMBO</span>
+  </div>
+  <div class="sidebar-btn" id="btn-ok" onclick="endTurn()">
+    <span class="btn-icon">✅</span>
+    <span class="btn-label">OK</span>
+  </div>
+</div>
+
+<!-- GAME AREA -->
+<div id="game-area">
+  <div id="hex-grid"></div>
+  <div id="player-entity">
+    <div id="player-cube">
+      <div class="player-eye left"></div>
+      <div class="player-eye right"></div>
+    </div>
+    <div id="orb-container"></div>
+  </div>
+</div>
+
+<!-- ORB SELECTOR PANEL -->
+<div id="orb-panel">
+  <div id="orb-panel-wrap">
+    <div id="orb-panel-title">Select 2 Orbs to Attack</div>
+    <div id="orb-panel-items" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:320px"></div>
+  </div>
+</div>
+
+<!-- FLASH MESSAGE -->
+<div id="flash-msg">
+  <div id="flash-combo-name"></div>
+  <div id="flash-damage"></div>
+  <div id="flash-multiplier"></div>
+</div>
+
+<!-- COMBO POPUP -->
+<div id="combo-popup">
+  <h2>⚡ Combo Chart</h2>
+  <div class="combo-row"><span class="combo-name">🌿 Nature + 🔥 Fire</span><span class="combo-mult">×2.25</span></div>
+  <div class="combo-row"><span class="combo-name">💧 Water + ⚡ Lightning</span><span class="combo-mult">×2.15</span></div>
+  <div class="combo-row"><span class="combo-name">💎 Crystal + ✨ Light</span><span class="combo-mult">×2.75</span></div>
+  <div class="combo-row"><span class="combo-name">🌑 Dark + 🌀 Void</span><span class="combo-mult">×3.20</span></div>
+  <div class="combo-row"><span class="combo-name">🌿 Nature + 🪨 Earth</span><span class="combo-mult">×2.10</span></div>
+  <div class="combo-row"><span class="combo-name">Any other combo</span><span class="combo-mult">×1.0</span></div>
+  <button id="combo-close" onclick="closeComboChart()">Close</button>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div id="overlay">
+  <div id="overlay-box">
+    <div id="overlay-title">💀 GAME OVER</div>
+    <div id="overlay-score">Score: 0</div>
+    <button id="overlay-btn" onclick="restartGame()">Play Again</button>
+  </div>
+</div>
+
+<!-- WAVE ANNOUNCE -->
+<div id="wave-announce"></div>
+
+<!-- AREA LABEL -->
+<div id="area-label">Area 1</div>
+
+<script>
+// ===== CONSTANTS =====
+const COLS = 5, ROWS = 4;
+const HEX_W = 72, HEX_H = 72;
+const HEX_GAP_X = 78, HEX_GAP_Y = 68;
+
+const ORBS = [
+  { id: 'fire',      name: 'Fire',      emoji: '🔥', color: '#ff4422', glow: '#ff220088' },
+  { id: 'water',     name: 'Water',     emoji: '💧', color: '#2266ff', glow: '#2244ff88' },
+  { id: 'nature',    name: 'Nature',    emoji: '🌿', color: '#22cc44', glow: '#22aa4488' },
+  { id: 'lightning', name: 'Lightning', emoji: '⚡', color: '#ffee22', glow: '#ddcc0088' },
+  { id: 'dark',      name: 'Dark',      emoji: '🌑', color: '#8822cc', glow: '#661faa88' },
+  { id: 'crystal',   name: 'Crystal',   emoji: '💎', color: '#aaeeff', glow: '#88ccff88' },
+  { id: 'earth',     name: 'Earth',     emoji: '🪨', color: '#cc7722', glow: '#aa550088' },
+  { id: 'light',     name: 'Light',     emoji: '✨', color: '#ffccff', glow: '#ffaaffaa' },
+];
+
+const COMBOS = [
+  { orbs: ['nature','fire'],      name: 'Verdant Flame',    mult: 2.25 },
+  { orbs: ['water','lightning'],  name: 'Storm Surge',      mult: 2.15 },
+  { orbs: ['crystal','light'],    name: 'Prismatic Ray',    mult: 2.75 },
+  { orbs: ['dark','void'],        name: 'Void Crush',       mult: 3.20 },
+  { orbs: ['nature','earth'],     name: 'Terra Root',       mult: 2.10 },
+];
+
+const ENEMY_TYPES = [
+  { type: 'triangle', name: 'Grunt',    color: '#ff2222', glow: '#ff000088', maxHp: 40, shape: 'triangle' },
+  { type: 'circle',   name: 'Support',  color: '#cc22ff', glow: '#aa00ff88', maxHp: 60, shape: 'circle'   },
+  { type: 'diamond',  name: 'Crystal',  color: '#22ffff', glow: '#00ddff88', maxHp: 60, shape: 'diamond'  },
+  { type: 'pentagon', name: 'Golem',    color: '#ff8800', glow: '#ff660088', maxHp: 90, shape: 'pentagon' },
+  { type: 'star',     name: 'Void',     color: '#ff44bb', glow: '#ff00aa88', maxHp: 70, shape: 'star'     },
+];
+
+// ===== STATE =====
+let state = {};
+
+function initState() {
+  state = {
+    playerHp: 100,
+    playerMaxHp: 100,
+    energy: 5,
+    maxEnergy: 5,
+    lives: 3,
+    score: 0,
+    wave: 1,
+    playerCell: { col: 0, row: 1 },
+    enemies: [],
+    turn: 'player', // 'player' | 'enemy'
+    attackMode: false,
+    selectedOrbs: [],
+    animating: false,
+  };
+}
+
+// ===== HEX GRID =====
+function cellCenter(col, row) {
+  let x = col * HEX_GAP_X;
+  if (row % 2 === 1) x += HEX_GAP_X / 2;
+  let y = row * HEX_GAP_Y;
+  return { x, y };
+}
+
+function hexPath(w, h) {
+  // Flat-top pointy hexagon polygon points
+  const cx = w / 2, cy = h / 2;
+  const rx = w * 0.47, ry = h * 0.47;
+  const pts = [];
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6;
+    pts.push(`${cx + rx * Math.cos(angle)},${cy + ry * Math.sin(angle)}`);
+  }
+  return pts.join(' ');
+}
+
+function cellSide(col) {
+  if (col <= 1) return 'player-side';
+  if (col >= 3) return 'enemy-side';
+  return 'neutral';
+}
+
+function buildGrid() {
+  const grid = document.getElementById('hex-grid');
+  grid.innerHTML = '';
+  const totalW = (COLS - 1) * HEX_GAP_X + HEX_W + HEX_GAP_X / 2;
+  const totalH = (ROWS - 1) * HEX_GAP_Y + HEX_H;
+  grid.style.width = totalW + 'px';
+  grid.style.height = totalH + 'px';
+
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const cell = document.createElement('div');
+      cell.className = 'hex-cell ' + cellSide(col);
+      cell.dataset.col = col;
+      cell.dataset.row = row;
+      const { x, y } = cellCenter(col, row);
+      cell.style.left = x + 'px';
+      cell.style.top = y + 'px';
+      cell.innerHTML = `<svg viewBox="0 0 72 72"><polygon points="${hexPath(72,72)}"/></svg>`;
+      cell.addEventListener('click', () => onCellClick(col, row));
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function getCell(col, row) {
+  return document.querySelector(`.hex-cell[data-col="${col}"][data-row="${row}"]`);
+}
+
+function adjacentCells(col, row) {
+  // Offset hex grid adjacency (odd-row offset)
+  const adj = [];
+  const offsets = row % 2 === 0
+    ? [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1]]
+    : [[-1,0],[1,0],[0,-1],[0,1],[1,-1],[1,1]];
+  for (const [dc, dr] of offsets) {
+    const nc = col + dc, nr = row + dr;
+    if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) adj.push({ col: nc, row: nr });
+  }
+  return adj;
+}
+
+function hexDist(a, b) {
+  // Axial distance via cube coords
+  function toAxial(col, row) {
+    const q = col - (row - (row & 1)) / 2;
+    const r = row;
+    return { q, r, s: -q - r };
+  }
+  const A = toAxial(a.col, a.row);
+  const B = toAxial(b.col, b.row);
+  return Math.max(Math.abs(A.q - B.q), Math.abs(A.r - B.r), Math.abs(A.s - B.s));
+}
+
+function highlightAdjacent() {
+  clearHighlights();
+  const adj = adjacentCells(state.playerCell.col, state.playerCell.row);
+  for (const { col, row } of adj) {
+    const cell = getCell(col, row);
+    if (cell && !enemyAt(col, row)) {
+      cell.classList.add('highlighted');
+    }
+  }
+}
+
+function clearHighlights() {
+  document.querySelectorAll('.hex-cell.highlighted').forEach(c => c.classList.remove('highlighted'));
+  document.querySelectorAll('.hex-cell.portal').forEach(c => c.classList.remove('portal'));
+}
+
+// ===== PLAYER ENTITY =====
+function placePlayer() {
+  const { x, y } = cellCenter(state.playerCell.col, state.playerCell.row);
+  const pe = document.getElementById('player-entity');
+  // Center entity on hex center
+  pe.style.left = (x + HEX_W / 2 - 22 + 80) + 'px';  // +80 for sidebar offset handled by game-area
+  pe.style.top = (y + HEX_H / 2 - 22 + 64) + 'px';    // +64 for top bar
+}
+
+// Actually, player-entity is inside game-area, not fixed. Let's recalculate.
+function updatePlayerPos() {
+  const { x, y } = cellCenter(state.playerCell.col, state.playerCell.row);
+  const pe = document.getElementById('player-entity');
+  const grid = document.getElementById('hex-grid');
+  const gridRect = grid.getBoundingClientRect();
+  const gameArea = document.getElementById('game-area');
+  const gaRect = gameArea.getBoundingClientRect();
+  pe.style.left = (gridRect.left - gaRect.left + x + HEX_W / 2 - 22) + 'px';
+  pe.style.top = (gridRect.top - gaRect.top + y + HEX_H / 2 - 22) + 'px';
+}
+
+// ===== ORB ORBIT =====
+let orbAngle = 0;
+let orbAnimFrame = null;
+
+function startOrbAnimation() {
+  if (orbAnimFrame) cancelAnimationFrame(orbAnimFrame);
+  function frame() {
+    orbAngle += 0.012;
+    updateOrbPositions();
+    orbAnimFrame = requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+function updateOrbPositions() {
+  const container = document.getElementById('orb-container');
+  const orbs = container.querySelectorAll('.orb');
+  const radius = 38;
+  orbs.forEach((orb, i) => {
+    const angle = orbAngle + (i / ORBS.length) * Math.PI * 2;
+    const ox = Math.cos(angle) * radius;
+    const oy = Math.sin(angle) * radius;
+    orb.style.left = (ox - 7) + 'px';
+    orb.style.top = (oy - 7) + 'px';
+  });
+}
+
+function buildOrbs() {
+  const container = document.getElementById('orb-container');
+  container.innerHTML = '';
+  ORBS.forEach((orb, i) => {
+    const el = document.createElement('div');
+    el.className = 'orb';
+    el.dataset.id = orb.id;
+    el.title = orb.name;
+    el.style.background = orb.color;
+    el.style.boxShadow = `0 0 8px ${orb.glow}, 0 0 16px ${orb.glow}`;
+    container.appendChild(el);
+  });
+}
+
+// ===== ENEMIES =====
+function spawnWave(wave) {
+  state.enemies = [];
+  let count = Math.min(2 + wave, 5);
+  const spawnCells = [
+    { col: 4, row: 0 }, { col: 4, row: 2 }, { col: 3, row: 1 },
+    { col: 4, row: 3 }, { col: 3, row: 3 }
+  ];
+  for (let i = 0; i < count; i++) {
+    const typeIdx = (i + wave - 1) % ENEMY_TYPES.length;
+    const type = ENEMY_TYPES[typeIdx];
+    const cell = spawnCells[i % spawnCells.length];
+    if (state.enemies.find(e => e.col === cell.col && e.row === cell.row)) continue;
+    const hp = type.maxHp + (wave - 1) * 15;
+    state.enemies.push({
+      id: Date.now() + i,
+      col: cell.col,
+      row: cell.row,
+      type: type.type,
+      name: type.name,
+      color: type.color,
+      glow: type.glow,
+      hp,
+      maxHp: hp,
+    });
+  }
+  renderEnemies();
+}
+
+function enemyAt(col, row) {
+  return state.enemies.find(e => e.col === col && e.row === row);
+}
+
+function enemySVG(type, color, glow) {
+  const c = color;
+  switch (type) {
+    case 'triangle':
+      return `<svg viewBox="0 0 40 40" overflow="visible">
+        <polygon points="20,4 36,36 4,36" fill="none" stroke="${c}" stroke-width="2.5"
+          style="filter:drop-shadow(0 0 6px ${glow})"/>
+        <polygon points="20,10 30,30 10,30" fill="${c}22"/>
+      </svg>`;
+    case 'circle':
+      return `<svg viewBox="0 0 40 40" overflow="visible">
+        <circle cx="20" cy="20" r="15" fill="${c}22" stroke="${c}" stroke-width="2.5"
+          style="filter:drop-shadow(0 0 6px ${glow})"/>
+        <circle cx="20" cy="20" r="8" fill="${c}44"/>
+      </svg>`;
+    case 'diamond':
+      return `<svg viewBox="0 0 40 40" overflow="visible">
+        <polygon points="20,4 36,20 20,36 4,20" fill="${c}22" stroke="${c}" stroke-width="2.5"
+          style="filter:drop-shadow(0 0 6px ${glow})"/>
+        <polygon points="20,10 30,20 20,30 10,20" fill="${c}44"/>
+      </svg>`;
+    case 'pentagon':
+      return `<svg viewBox="0 0 40 40" overflow="visible">
+        <polygon points="20,3 37,15 31,34 9,34 3,15" fill="${c}22" stroke="${c}" stroke-width="2.5"
+          style="filter:drop-shadow(0 0 6px ${glow})"/>
+        <polygon points="20,9 31,19 26,31 14,31 9,19" fill="${c}44"/>
+      </svg>`;
+    case 'star':
+      return `<svg viewBox="0 0 40 40" overflow="visible">
+        <polygon points="20,2 24,15 38,15 27,23 31,37 20,29 9,37 13,23 2,15 16,15"
+          fill="${c}33" stroke="${c}" stroke-width="2"
+          style="filter:drop-shadow(0 0 6px ${glow})"/>
+      </svg>`;
+    default:
+      return `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="${c}44" stroke="${c}" stroke-width="2"/></svg>`;
+  }
+}
+
+function renderEnemies() {
+  document.querySelectorAll('.enemy-entity').forEach(e => e.remove());
+  const gameArea = document.getElementById('game-area');
+  const grid = document.getElementById('hex-grid');
+
+  state.enemies.forEach(enemy => {
+    const { x, y } = cellCenter(enemy.col, enemy.row);
+    const el = document.createElement('div');
+    el.className = 'enemy-entity';
+    el.id = 'enemy-' + enemy.id;
+    el.innerHTML = enemySVG(enemy.type, enemy.color, enemy.glow) +
+      `<div class="hp-bar-enemy"><div class="hp-bar-fill" style="width:${(enemy.hp/enemy.maxHp)*100}%"></div></div>`;
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (state.attackMode && state.selectedOrbs.length === 2) {
+        fireCombo(enemy.id);
+      }
+    });
+
+    const gridRect = grid.getBoundingClientRect();
+    const gaRect = gameArea.getBoundingClientRect();
+    el.style.left = (gridRect.left - gaRect.left + x + HEX_W / 2 - 22) + 'px';
+    el.style.top = (gridRect.top - gaRect.top + y + HEX_H / 2 - 22) + 'px';
+    gameArea.appendChild(el);
+  });
+}
+
+function updateEnemyEl(enemy) {
+  const el = document.getElementById('enemy-' + enemy.id);
+  if (!el) return;
+  const fill = el.querySelector('.hp-bar-fill');
+  if (fill) fill.style.width = Math.max(0, (enemy.hp / enemy.maxHp) * 100) + '%';
+}
+
+// ===== UI UPDATES =====
+function updateUI() {
+  document.getElementById('score-display').textContent = '⭐ ' + state.score;
+  document.getElementById('hp-bar').style.width = Math.max(0, (state.playerHp / state.playerMaxHp) * 100) + '%';
+  document.getElementById('hp-text').textContent = state.playerHp + '/' + state.playerMaxHp;
+  document.getElementById('energy-bar').style.width = (state.energy / state.maxEnergy * 100) + '%';
+  document.getElementById('energy-text').textContent = state.energy + '/' + state.maxEnergy;
+
+  const livesDiv = document.getElementById('lives-display');
+  livesDiv.innerHTML = '';
+  for (let i = 0; i < state.lives; i++) {
+    const h = document.createElement('span');
+    h.className = 'life-heart';
+    h.textContent = '❤️';
+    livesDiv.appendChild(h);
+  }
+
+  document.getElementById('area-label').textContent = 'Area ' + state.wave;
+  document.getElementById('turn-indicator') && (document.getElementById('turn-indicator').textContent =
+    state.turn === 'player' ? '🟢 Your Turn' : '🔴 Enemy Turn');
+
+  // Update turn indicator
+  let ti = document.getElementById('turn-indicator');
+  if (!ti) {
+    ti = document.createElement('div');
+    ti.id = 'turn-indicator';
+    document.body.appendChild(ti);
+  }
+  ti.textContent = state.turn === 'player' ? '🟢 Your Turn' : '🔴 Enemy Turn';
+}
+
+// ===== CELL CLICK =====
+function onCellClick(col, row) {
+  if (state.animating || state.turn !== 'player') return;
+  if (state.attackMode) return; // In attack mode, don't move
+
+  // Check if adjacent
+  const adj = adjacentCells(state.playerCell.col, state.playerCell.row);
+  const isAdj = adj.some(c => c.col === col && c.row === row);
+  if (!isAdj) return;
+  if (enemyAt(col, row)) return; // Can't move to enemy cell
+
+  state.playerCell = { col, row };
+  updatePlayerPos();
+  clearHighlights();
+  highlightAdjacent();
+}
+
+// ===== ATTACK SYSTEM =====
+function startAttack() {
+  if (state.turn !== 'player' || state.animating) return;
+  if (state.energy < 2) {
+    showFlash('Not enough energy!', '', '');
+    return;
+  }
+  state.attackMode = true;
+  state.selectedOrbs = [];
+  document.getElementById('btn-attack').classList.add('active');
+  openOrbPanel();
+}
+
+function openOrbPanel() {
+  const panel = document.getElementById('orb-panel');
+  const items = document.getElementById('orb-panel-items');
+  items.innerHTML = '';
+  panel.classList.add('open');
+  ORBS.forEach(orb => {
+    const el = document.createElement('div');
+    el.className = 'orb-select-item';
+    el.dataset.id = orb.id;
+    el.style.background = orb.color;
+    el.style.boxShadow = `0 0 10px ${orb.glow}`;
+    el.innerHTML = `<span style="font-size:16px">${orb.emoji}</span><span>${orb.name}</span>`;
+    el.addEventListener('click', () => selectOrbForAttack(orb.id));
+    items.appendChild(el);
+  });
+}
+
+function closeOrbPanel() {
+  document.getElementById('orb-panel').classList.remove('open');
+  state.attackMode = false;
+  state.selectedOrbs = [];
+  document.getElementById('btn-attack').classList.remove('active');
+}
+
+function selectOrbForAttack(orbId) {
+  if (state.selectedOrbs.includes(orbId)) {
+    state.selectedOrbs = state.selectedOrbs.filter(o => o !== orbId);
+  } else if (state.selectedOrbs.length < 2) {
+    state.selectedOrbs.push(orbId);
+  } else {
+    // Replace second
+    state.selectedOrbs[1] = orbId;
+  }
+
+  // Update visual
+  document.querySelectorAll('#orb-panel-items .orb-select-item').forEach(el => {
+    el.classList.toggle('picked', state.selectedOrbs.includes(el.dataset.id));
+  });
+
+  if (state.selectedOrbs.length === 2) {
+    // Auto-fire at nearest enemy if orbs selected
+    document.getElementById('orb-panel-title').textContent = 'Click an enemy or auto-attack!';
+    // Auto target nearest
+    setTimeout(() => {
+      const nearest = getNearestEnemy();
+      if (nearest) fireCombo(nearest.id);
+    }, 600);
+  }
+}
+
+function getNearestEnemy() {
+  if (state.enemies.length === 0) return null;
+  let best = null, bestDist = 999;
+  for (const e of state.enemies) {
+    const d = hexDist(state.playerCell, e);
+    if (d < bestDist) { bestDist = d; best = e; }
+  }
+  return best;
+}
+
+function getComboResult(orb1, orb2) {
+  for (const combo of COMBOS) {
+    if ((combo.orbs[0] === orb1 && combo.orbs[1] === orb2) ||
+        (combo.orbs[0] === orb2 && combo.orbs[1] === orb1)) {
+      return { name: combo.name, mult: combo.mult };
+    }
+  }
+  return { name: 'Basic Strike', mult: 1.0 };
+}
+
+function fireCombo(enemyId) {
+  if (state.selectedOrbs.length < 2) return;
+  closeOrbPanel();
+
+  const [o1, o2] = state.selectedOrbs;
+  const combo = getComboResult(o1, o2);
+  const damage = Math.round(20 * combo.mult);
+
+  const orb1 = ORBS.find(o => o.id === o1);
+  const orb2 = ORBS.find(o => o.id === o2);
+  const comboLabel = `${orb1.emoji} ${orb1.name} + ${orb2.emoji} ${orb2.name}`;
+
+  state.energy = Math.max(0, state.energy - 2);
+  state.animating = true;
+
+  showFlash(combo.name, `💥 ${damage} DMG`, `${comboLabel} ×${combo.mult.toFixed(2)}`);
+
+  setTimeout(() => {
+    const enemy = state.enemies.find(e => e.id === enemyId);
+    if (enemy) {
+      enemy.hp -= damage;
+      floatDamage(enemyId, damage);
+      updateEnemyEl(enemy);
+
+      if (enemy.hp <= 0) {
+        state.score += 100 * state.wave;
+        removeEnemy(enemyId);
+      }
+    }
+
+    state.animating = false;
+    updateUI();
+
+    if (state.enemies.length === 0) {
+      setTimeout(nextWave, 800);
+    }
+  }, 800);
+}
+
+function removeEnemy(id) {
+  state.enemies = state.enemies.filter(e => e.id !== id);
+  const el = document.getElementById('enemy-' + id);
+  if (el) {
+    el.style.transition = 'opacity 0.4s, transform 0.4s';
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0)';
+    setTimeout(() => el.remove(), 400);
+  }
+}
+
+function doCannon() {
+  if (state.turn !== 'player' || state.animating) return;
+  if (state.energy < 1) {
+    showFlash('Not enough energy!', '', '');
+    return;
+  }
+  if (state.enemies.length === 0) return;
+
+  state.energy = Math.max(0, state.energy - 1);
+  state.animating = true;
+
+  showFlash('Cannon Barrage!', '💥 10 DMG each', 'All enemies hit');
+
+  setTimeout(() => {
+    const toRemove = [];
+    for (const enemy of state.enemies) {
+      enemy.hp -= 10;
+      floatDamage(enemy.id, 10);
+      updateEnemyEl(enemy);
+      if (enemy.hp <= 0) {
+        state.score += 100 * state.wave;
+        toRemove.push(enemy.id);
+      }
+    }
+    toRemove.forEach(id => removeEnemy(id));
+    state.animating = false;
+    updateUI();
+    if (state.enemies.length === 0) setTimeout(nextWave, 800);
+  }, 800);
+}
+
+function floatDamage(enemyId, amount) {
+  const el = document.getElementById('enemy-' + enemyId);
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  const gaRect = document.getElementById('game-area').getBoundingClientRect();
+  const dmg = document.createElement('div');
+  dmg.className = 'dmg-float';
+  dmg.textContent = '-' + amount;
+  dmg.style.left = (rect.left - gaRect.left + 10) + 'px';
+  dmg.style.top = (rect.top - gaRect.top - 10) + 'px';
+  document.getElementById('game-area').appendChild(dmg);
+  setTimeout(() => dmg.remove(), 1000);
+}
+
+// ===== FLASH MESSAGE =====
+let flashTimeout = null;
+function showFlash(name, damage, mult) {
+  const msg = document.getElementById('flash-msg');
+  document.getElementById('flash-combo-name').textContent = name;
+  document.getElementById('flash-damage').textContent = damage;
+  document.getElementById('flash-multiplier').textContent = mult;
+  msg.classList.add('show');
+  if (flashTimeout) clearTimeout(flashTimeout);
+  flashTimeout = setTimeout(() => msg.classList.remove('show'), 1500);
+}
+
+// ===== ENEMY TURN =====
+function endTurn() {
+  if (state.turn !== 'player' || state.animating) return;
+  closeOrbPanel();
+  state.turn = 'enemy';
+  updateUI();
+  clearHighlights();
+  setTimeout(runEnemyTurn, 500);
+}
+
+async function runEnemyTurn() {
+  state.animating = true;
+
+  for (let i = 0; i < state.enemies.length; i++) {
+    const enemy = state.enemies[i];
+    await new Promise(resolve => {
+      setTimeout(() => {
+        moveEnemyToward(enemy);
+        resolve();
+      }, 300 * (i + 1));
+    });
+  }
+
+  // Check adjacency damage
+  setTimeout(() => {
+    for (const enemy of state.enemies) {
+      if (hexDist(state.playerCell, enemy) <= 1) {
+        state.playerHp -= 15;
+        showFlash(enemy.name + ' attacks!', '-15 HP', 'Melee strike');
+      }
+    }
+
+    if (state.playerHp <= 0) {
+      state.lives--;
+      if (state.lives <= 0) {
+        state.animating = false;
+        showGameOver();
+        return;
+      }
+      state.playerHp = state.playerMaxHp;
+      showFlash('Life Lost!', 'Respawning...', `${state.lives} lives left`);
+    }
+
+    // Restore energy
+    state.energy = Math.min(state.maxEnergy, state.energy + 2);
+    state.turn = 'player';
+    state.animating = false;
+    updateUI();
+    highlightAdjacent();
+  }, 300 * (state.enemies.length + 1) + 200);
+}
+
+function moveEnemyToward(enemy) {
+  // Find best adjacent cell toward player
+  const adj = adjacentCells(enemy.col, enemy.row).filter(c => {
+    if (c.col === state.playerCell.col && c.row === state.playerCell.row) return false;
+    if (state.enemies.find(e => e !== enemy && e.col === c.col && e.row === c.row)) return false;
+    return true;
+  });
+
+  if (adj.length === 0) return;
+
+  let best = adj[0];
+  let bestDist = hexDist(best, state.playerCell);
+  for (const cell of adj) {
+    const d = hexDist(cell, state.playerCell);
+    if (d < bestDist) { bestDist = d; best = cell; }
+  }
+
+  enemy.col = best.col;
+  enemy.row = best.row;
+
+  // Reposition enemy element
+  const el = document.getElementById('enemy-' + enemy.id);
+  if (!el) return;
+  const { x, y } = cellCenter(enemy.col, enemy.row);
+  const grid = document.getElementById('hex-grid');
+  const gameArea = document.getElementById('game-area');
+  const gridRect = grid.getBoundingClientRect();
+  const gaRect = gameArea.getBoundingClientRect();
+  el.style.left = (gridRect.left - gaRect.left + x + HEX_W / 2 - 22) + 'px';
+  el.style.top = (gridRect.top - gaRect.top + y + HEX_H / 2 - 22) + 'px';
+}
+
+// ===== WAVE MANAGEMENT =====
+function nextWave() {
+  state.wave++;
+  const ann = document.getElementById('wave-announce');
+  ann.textContent = 'Wave ' + state.wave + '!';
+  ann.classList.add('show');
+  setTimeout(() => ann.classList.remove('show'), 2000);
+  setTimeout(() => {
+    spawnWave(state.wave);
+    updateUI();
+  }, 1000);
+}
+
+// ===== COMBO CHART =====
+function showComboChart() {
+  document.getElementById('combo-popup').classList.add('open');
+}
+function closeComboChart() {
+  document.getElementById('combo-popup').classList.remove('open');
+}
+
+// ===== GAME OVER =====
+function showGameOver() {
+  document.getElementById('overlay-title').textContent = '💀 GAME OVER';
+  document.getElementById('overlay-title').style.color = '#ff4444';
+  document.getElementById('overlay-score').textContent = 'Score: ' + state.score;
+  document.getElementById('overlay').classList.add('open');
+}
+
+function restartGame() {
+  document.getElementById('overlay').classList.remove('open');
+  initState();
+  clearHighlights();
+  document.querySelectorAll('.enemy-entity').forEach(e => e.remove());
+  spawnWave(1);
+  updatePlayerPos();
+  updateUI();
+  highlightAdjacent();
+}
+
+// ===== INIT =====
+function init() {
+  buildGrid();
+  buildOrbs();
+  initState();
+  spawnWave(1);
+
+  // Wait for layout
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      updatePlayerPos();
+      highlightAdjacent();
+      updateUI();
+      startOrbAnimation();
+    });
+  });
+
+  // Reposition on resize
+  window.addEventListener('resize', () => {
+    updatePlayerPos();
+    renderEnemies();
+  });
+
+  // Touch support for orb panel
+  document.getElementById('orb-panel').addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+}
+
+window.addEventListener('load', init);
+</script>
+</body>
+</html>
